@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+scikit-learn==1.9.1
+joblib
+jinja2
+pandas
+groq
+python-dotenv
