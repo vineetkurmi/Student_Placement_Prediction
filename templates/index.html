@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
 
     <title>Student Placement Predictor</title>
 
@@ -146,7 +147,8 @@
             box-shadow: 0 8px 25px rgba(124, 58, 237, 0.25);
         }
 
-        .primary-btn:disabled {
+        .primary-btn:disabled,
+        .secondary-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
@@ -162,6 +164,24 @@
         .secondary-btn:hover {
             background: #8b4cf5;
             transform: translateY(-1px);
+        }
+
+        /* ================= ERROR BOX ================= */
+
+        .error-box {
+            display: none;
+            margin-top: 16px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: rgba(255, 77, 77, 0.1);
+            border: 1px solid rgba(255, 77, 77, 0.35);
+            color: #ff8a8a;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .error-box.active {
+            display: block;
         }
 
         /* ================= RESULT ================= */
@@ -214,7 +234,30 @@
             color: #c2c2ca;
             font-size: 14px;
             line-height: 1.7;
-            white-space: pre-wrap;
+        }
+
+        .ai-content h2 {
+            font-size: 15px;
+            font-weight: 750;
+            color: #a875ff;
+            margin: 16px 0 6px;
+            letter-spacing: 0;
+        }
+
+        .ai-content h2:first-child {
+            margin-top: 0;
+        }
+
+        .ai-content p {
+            margin: 6px 0;
+        }
+
+        .ai-content ul {
+            margin: 6px 0 6px 20px;
+        }
+
+        .ai-content strong {
+            color: #e4e4ea;
         }
 
         /* ================= SIMULATOR ================= */
@@ -326,6 +369,11 @@
             font-size: 15px;
         }
 
+        .improvement-value.unchanged {
+            color: #777783;
+            font-weight: 600;
+        }
+
         /* ================= SIMULATION MESSAGE ================= */
 
         .simulation-message {
@@ -433,11 +481,10 @@
 
                 <h2>Student Information</h2>
 
-                <form id="predictionForm">
+                <form id="predictionForm" novalidate>
 
                     <div class="form-grid">
 
-                        <!-- Gender -->
                         <div class="form-group">
                             <label for="gender">Gender</label>
 
@@ -448,8 +495,6 @@
                             </select>
                         </div>
 
-
-                        <!-- Branch -->
                         <div class="form-group">
                             <label for="branch">Branch</label>
 
@@ -464,106 +509,46 @@
                             </select>
                         </div>
 
-
-                        <!-- Study Hours -->
                         <div class="form-group">
                             <label for="study_hours">Study Hours</label>
-
-                            <input
-                                type="number"
-                                id="study_hours"
-                                min="0"
-                                max="24"
-                                step="0.1"
-                                required
-                            >
+                            <input type="number" id="study_hours"
+                                   min="0" max="24" step="0.1" required>
                         </div>
 
-
-                        <!-- Attendance -->
                         <div class="form-group">
                             <label for="attendance">Attendance (%)</label>
-
-                            <input
-                                type="number"
-                                id="attendance"
-                                min="0"
-                                max="100"
-                                step="1"
-                                required
-                            >
+                            <input type="number" id="attendance"
+                                   min="0" max="100" step="1" required>
                         </div>
 
-
-                        <!-- Sleep Hours -->
                         <div class="form-group">
                             <label for="sleep_hours">Sleep Hours</label>
-
-                            <input
-                                type="number"
-                                id="sleep_hours"
-                                min="0"
-                                max="24"
-                                step="0.1"
-                                required
-                            >
+                            <input type="number" id="sleep_hours"
+                                   min="0" max="24" step="0.1" required>
                         </div>
 
-
-                        <!-- Internet Usage -->
                         <div class="form-group">
                             <label for="internet_usage">Internet Usage</label>
-
-                            <input
-                                type="number"
-                                id="internet_usage"
-                                min="0"
-                                max="24"
-                                step="0.1"
-                                required
-                            >
+                            <input type="number" id="internet_usage"
+                                   min="0" max="24" step="0.1" required>
                         </div>
 
-
-                        <!-- Assignments -->
                         <div class="form-group">
                             <label for="assignments_completed">
                                 Assignments Completed
                             </label>
-
-                            <input
-                                type="number"
-                                id="assignments_completed"
-                                min="0"
-                                max="100"
-                                step="1"
-                                required
-                            >
+                            <input type="number" id="assignments_completed"
+                                   min="0" max="100" step="1" required>
                         </div>
 
-
-                        <!-- Previous Score -->
                         <div class="form-group">
-                            <label for="previous_score">
-                                Previous Score
-                            </label>
-
-                            <input
-                                type="number"
-                                id="previous_score"
-                                min="0"
-                                max="100"
-                                step="1"
-                                required
-                            >
+                            <label for="previous_score">Previous Score</label>
+                            <input type="number" id="previous_score"
+                                   min="0" max="100" step="1" required>
                         </div>
 
-
-                        <!-- Extracurricular -->
                         <div class="form-group">
-                            <label for="extracurricular">
-                                Extracurricular
-                            </label>
+                            <label for="extracurricular">Extracurricular</label>
 
                             <select id="extracurricular" required>
                                 <option value="">Select</option>
@@ -572,37 +557,21 @@
                             </select>
                         </div>
 
-
-                        <!-- Exam Score -->
                         <div class="form-group">
-                            <label for="exam_score">
-                                Exam Score
-                            </label>
-
-                            <input
-                                type="number"
-                                id="exam_score"
-                                min="0"
-                                max="100"
-                                step="1"
-                                required
-                            >
+                            <label for="exam_score">Exam Score</label>
+                            <input type="number" id="exam_score"
+                                   min="0" max="100" step="1" required>
                         </div>
 
                     </div>
 
-
                     <div class="button-row">
-
-                        <button
-                            type="submit"
-                            class="primary-btn"
-                            id="predictButton"
-                        >
+                        <button type="submit" class="primary-btn" id="predictButton">
                             Predict Placement
                         </button>
-
                     </div>
+
+                    <div id="formError" class="error-box"></div>
 
                 </form>
 
@@ -611,39 +580,21 @@
 
             <!-- ================= PREDICTION RESULT ================= -->
 
-            <div
-                class="result-card"
-                id="predictionResult"
-                style="display: none;"
-            >
+            <div class="result-card" id="predictionResult" style="display: none;">
 
-                <div
-                    id="predictionText"
-                    class="prediction-title"
-                >
+                <div id="predictionText" class="prediction-title">
                     Not Placed
                 </div>
 
-                <div
-                    id="predictionProbability"
-                    class="probability"
-                >
+                <div id="predictionProbability" class="probability">
                     0% model confidence
                 </div>
 
-
-                <!-- AI Explanation -->
-
                 <div class="ai-box">
 
-                    <div class="ai-title">
-                        AI Placement Mentor
-                    </div>
+                    <div class="ai-title">AI Placement Mentor</div>
 
-                    <div
-                        id="explanationText"
-                        class="ai-content"
-                    >
+                    <div id="explanationText" class="ai-content">
                         Your personalized explanation will appear here.
                     </div>
 
@@ -667,131 +618,70 @@
                 and compares the result with your current profile.
             </p>
 
-
-            <button
-                id="simulateButton"
-                class="secondary-btn"
-            >
+            <button id="simulateButton" class="secondary-btn" type="button">
                 Simulate Improvement
             </button>
 
+            <div id="simError" class="error-box"></div>
 
-            <div
-                id="simulationLoading"
-                class="loading"
-            >
+            <div id="simulationLoading" class="loading">
                 Simulating academic improvements...
             </div>
 
 
             <!-- ================= SIMULATION RESULTS ================= -->
 
-            <div
-                id="simulationResults"
-                style="display: none;"
-            >
+            <div id="simulationResults" style="display: none;">
 
                 <div class="simulator-results">
 
                     <!-- CURRENT PROFILE -->
-
                     <div class="profile-box">
 
                         <h3>Current Profile</h3>
 
-                        <div
-                            id="currentPrediction"
-                            class="profile-prediction"
-                        >
+                        <div id="currentPrediction" class="profile-prediction">
                             Not Placed
                         </div>
 
-                        <div
-                            id="currentPlacedProbability"
-                            class="profile-probability"
-                        >
+                        <div id="currentPlacedProbability" class="profile-probability">
                             0% placed probability
                         </div>
 
-
                         <div class="probability-bar-container">
-
                             <div class="probability-label-row">
-
-                                <span class="probability-label">
-                                    Placed probability
-                                </span>
-
-                                <span
-                                    id="currentProbabilityValue"
-                                    class="probability-value"
-                                >
-                                    0%
-                                </span>
-
+                                <span class="probability-label">Placed probability</span>
+                                <span id="currentProbabilityValue" class="probability-value">0%</span>
                             </div>
-
                             <div class="progress-bar">
-
-                                <div
-                                    id="currentProgress"
-                                    class="progress-fill"
-                                ></div>
-
+                                <div id="currentProgress" class="progress-fill"></div>
                             </div>
-
                         </div>
 
                     </div>
 
 
                     <!-- IMPROVED PROFILE -->
-
                     <div class="profile-box">
 
                         <h3>Improved Profile</h3>
 
-                        <div
-                            id="improvedPrediction"
-                            class="profile-prediction"
-                        >
+                        <div id="improvedPrediction" class="profile-prediction">
                             Not Placed
                         </div>
 
-                        <div
-                            id="improvedPlacedProbability"
-                            class="profile-probability"
-                        >
+                        <div id="improvedPlacedProbability" class="profile-probability">
                             0% placed probability
                         </div>
 
-
                         <div class="probability-bar-container">
-
                             <div class="probability-label-row">
-
-                                <span class="probability-label">
-                                    Placed probability
-                                </span>
-
-                                <span
-                                    id="improvedProbabilityValue"
-                                    class="probability-value"
-                                >
-                                    0%
-                                </span>
-
+                                <span class="probability-label">Placed probability</span>
+                                <span id="improvedProbabilityValue" class="probability-value">0%</span>
                             </div>
-
                             <div class="progress-bar">
-
-                                <div
-                                    id="improvedProgress"
-                                    class="progress-fill"
-                                ></div>
-
+                                <div id="improvedProgress" class="progress-fill"></div>
                             </div>
-
                         </div>
 
                     </div>
@@ -804,66 +694,23 @@
                 <div class="improvements">
 
                     <div class="improvement-row">
-
-                        <span class="improvement-name">
-                            Study Hours
-                        </span>
-
-                        <span
-                            id="studyImprovement"
-                            class="improvement-value"
-                        >
-                            -
-                        </span>
-
+                        <span class="improvement-name">Study Hours</span>
+                        <span id="studyImprovement" class="improvement-value">-</span>
                     </div>
 
-
                     <div class="improvement-row">
-
-                        <span class="improvement-name">
-                            Attendance
-                        </span>
-
-                        <span
-                            id="attendanceImprovement"
-                            class="improvement-value"
-                        >
-                            -
-                        </span>
-
+                        <span class="improvement-name">Attendance</span>
+                        <span id="attendanceImprovement" class="improvement-value">-</span>
                     </div>
 
-
                     <div class="improvement-row">
-
-                        <span class="improvement-name">
-                            Assignments
-                        </span>
-
-                        <span
-                            id="assignmentImprovement"
-                            class="improvement-value"
-                        >
-                            -
-                        </span>
-
+                        <span class="improvement-name">Assignments</span>
+                        <span id="assignmentImprovement" class="improvement-value">-</span>
                     </div>
 
-
                     <div class="improvement-row">
-
-                        <span class="improvement-name">
-                            Exam Score
-                        </span>
-
-                        <span
-                            id="examImprovement"
-                            class="improvement-value"
-                        >
-                            -
-                        </span>
-
+                        <span class="improvement-name">Exam Score</span>
+                        <span id="examImprovement" class="improvement-value">-</span>
                     </div>
 
                 </div>
@@ -871,10 +718,7 @@
 
                 <!-- ================= SIMULATION MESSAGE ================= -->
 
-                <div
-                    id="simulationMessage"
-                    class="simulation-message"
-                >
+                <div id="simulationMessage" class="simulation-message">
                     This is a simulation based on the trained machine-learning
                     model. It does not guarantee an actual placement result.
                 </div>
@@ -899,526 +743,375 @@
 
 <script>
 
+    var NUMERIC_FIELDS = [
+        "study_hours", "attendance", "sleep_hours", "internet_usage",
+        "assignments_completed", "previous_score", "exam_score"
+    ];
+
+    var form = document.getElementById("predictionForm");
+
+
     /* ============================================================
-       HELPER: COLLECT STUDENT DATA
+       HELPERS
     ============================================================ */
 
+    function byId(id) {
+        return document.getElementById(id);
+    }
+
     function getStudentData() {
-
         return {
-
-            gender: document.getElementById("gender").value,
-
-            branch: document.getElementById("branch").value,
-
-            study_hours: Number(
-                document.getElementById("study_hours").value
-            ),
-
-            attendance: Number(
-                document.getElementById("attendance").value
-            ),
-
-            sleep_hours: Number(
-                document.getElementById("sleep_hours").value
-            ),
-
-            internet_usage: Number(
-                document.getElementById("internet_usage").value
-            ),
-
-            assignments_completed: Number(
-                document.getElementById("assignments_completed").value
-            ),
-
-            previous_score: Number(
-                document.getElementById("previous_score").value
-            ),
-
-            extracurricular:
-                document.getElementById("extracurricular").value,
-
-            exam_score: Number(
-                document.getElementById("exam_score").value
-            )
+            gender: byId("gender").value,
+            branch: byId("branch").value,
+            study_hours: Number(byId("study_hours").value),
+            attendance: Number(byId("attendance").value),
+            sleep_hours: Number(byId("sleep_hours").value),
+            internet_usage: Number(byId("internet_usage").value),
+            assignments_completed: Number(byId("assignments_completed").value),
+            previous_score: Number(byId("previous_score").value),
+            extracurricular: byId("extracurricular").value,
+            exam_score: Number(byId("exam_score").value)
         };
     }
 
+    /*
+        Uses the browser's built-in validation (required, min, max)
+        for BOTH buttons, so empty fields are never sent as 0.
+    */
+    function formIsValid() {
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+        }
+        return true;
+    }
 
-    /* ============================================================
-       HELPER: SET PREDICTION COLOR
-    ============================================================ */
+    function showError(boxId, message) {
+        var box = byId(boxId);
+        box.textContent = message;
+        box.classList.add("active");
+    }
+
+    function clearError(boxId) {
+        byId(boxId).classList.remove("active");
+    }
+
+    /* Turns a FastAPI error response into a readable message */
+    async function readError(response, fallback) {
+        try {
+            var data = await response.json();
+
+            if (Array.isArray(data.detail)) {
+                return data.detail.map(function (d) {
+                    var field = d.loc && d.loc.length
+                        ? d.loc[d.loc.length - 1]
+                        : "input";
+                    return field + ": " + d.msg;
+                }).join(" | ");
+            }
+
+            if (typeof data.detail === "string") {
+                return data.detail;
+            }
+        } catch (e) { /* response was not JSON */ }
+
+        return fallback;
+    }
 
     function setPredictionColor(element, prediction) {
-
-        element.classList.remove(
-            "placed",
-            "not-placed"
+        element.classList.remove("placed", "not-placed");
+        element.classList.add(
+            prediction === "Placed" ? "placed" : "not-placed"
         );
+    }
 
-        if (prediction === "Placed") {
+    function fmt(value) {
+        var n = Number(value);
+        return Number.isInteger(n) ? String(n) : n.toFixed(1);
+    }
 
-            element.classList.add("placed");
+    /* ---------- Safe mini-markdown (## headings, **bold**, lists) ---------- */
 
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    }
+
+    function inlineMarkdown(text) {
+        return escapeHtml(text).replace(
+            /\*\*(.+?)\*\*/g,
+            "<strong>$1</strong>"
+        );
+    }
+
+    function renderMarkdown(text) {
+        var lines = String(text || "").split("\n");
+        var html = "";
+        var inList = false;
+
+        function closeList() {
+            if (inList) {
+                html += "</ul>";
+                inList = false;
+            }
+        }
+
+        lines.forEach(function (raw) {
+            var line = raw.trim();
+
+            if (!line) {
+                closeList();
+                return;
+            }
+
+            var heading = line.match(/^#{1,6}\s+(.*)$/);
+            var item = line.match(/^(?:[-*]|\d+[.)])\s+(.*)$/);
+
+            if (heading) {
+                closeList();
+                html += "<h2>" + inlineMarkdown(heading[1]) + "</h2>";
+            } else if (item) {
+                if (!inList) {
+                    html += "<ul>";
+                    inList = true;
+                }
+                html += "<li>" + inlineMarkdown(item[1]) + "</li>";
+            } else {
+                closeList();
+                html += "<p>" + inlineMarkdown(line) + "</p>";
+            }
+        });
+
+        closeList();
+        return html;
+    }
+
+    /* ---------- One improvement row ---------- */
+
+    function setImprovement(id, change, suffix) {
+        var el = byId(id);
+
+        if (!change) {
+            el.textContent = "-";
+            el.classList.add("unchanged");
+            return;
+        }
+
+        var before = Number(change.before);
+        var after = Number(change.after);
+
+        if (after === before) {
+            el.textContent = fmt(before) + suffix + " (no change)";
+            el.classList.add("unchanged");
         } else {
-
-            element.classList.add("not-placed");
+            el.textContent =
+                fmt(before) + suffix + " → " + fmt(after) + suffix;
+            el.classList.remove("unchanged");
         }
     }
+
+    /* ---------- One profile box (current / improved) ---------- */
+
+    function fillProfile(prefix, profile) {
+        var predictionEl = byId(prefix + "Prediction");
+        var probability = Number(profile.placed_probability ?? 0);
+
+        predictionEl.textContent = profile.prediction;
+        setPredictionColor(predictionEl, profile.prediction);
+
+        byId(prefix + "PlacedProbability").textContent =
+            probability + "% placed probability";
+
+        byId(prefix + "ProbabilityValue").textContent = probability + "%";
+
+        byId(prefix + "Progress").style.width =
+            Math.min(probability, 100) + "%";
+    }
+
+    /* Hide old simulation when the student's data changes */
+    function hideStaleSimulation() {
+        byId("simulationResults").style.display = "none";
+    }
+
+    form.addEventListener("input", hideStaleSimulation);
+    form.addEventListener("change", hideStaleSimulation);
 
 
     /* ============================================================
        PREDICT PLACEMENT
     ============================================================ */
 
-    document
-        .getElementById("predictionForm")
-        .addEventListener("submit", async function(event) {
+    form.addEventListener("submit", async function (event) {
 
-            event.preventDefault();
+        event.preventDefault();
+        clearError("formError");
 
-            const button =
-                document.getElementById("predictButton");
+        if (!formIsValid()) {
+            return;
+        }
 
-            const resultCard =
-                document.getElementById("predictionResult");
+        var button = byId("predictButton");
+        var resultCard = byId("predictionResult");
 
-            const predictionText =
-                document.getElementById("predictionText");
+        button.disabled = true;
+        button.textContent = "Predicting...";
 
-            const predictionProbability =
-                document.getElementById("predictionProbability");
+        try {
 
-            const explanationText =
-                document.getElementById("explanationText");
+            var response = await fetch("/predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(getStudentData())
+            });
 
-
-            button.disabled = true;
-            button.textContent = "Predicting...";
-
-
-            try {
-
-                const studentData = getStudentData();
-
-
-                const response = await fetch(
-                    "/predict",
-                    {
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-
-                        body: JSON.stringify(studentData)
-                    }
+            if (!response.ok) {
+                throw new Error(
+                    await readError(response, "Prediction request failed.")
                 );
-
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        "Prediction request failed."
-                    );
-                }
-
-
-                const result = await response.json();
-
-
-                /* ---------------- Prediction ---------------- */
-
-                predictionText.textContent =
-                    result.prediction;
-
-                setPredictionColor(
-                    predictionText,
-                    result.prediction
-                );
-
-
-                /*
-                    Main prediction card shows confidence in the
-                    class predicted by the model.
-
-                    The simulator separately uses placed_probability
-                    because it specifically tracks placement probability.
-                */
-
-                const modelConfidence =
-                    Number(result.probability ?? 0);
-
-                predictionProbability.textContent =
-                    modelConfidence +
-                    "% model confidence";
-
-
-                /* ---------------- AI Explanation ---------------- */
-
-                explanationText.textContent =
-                    result.explanation ||
-                    "No AI explanation was returned.";
-
-
-                resultCard.style.display = "block";
-
-
-                /* ---------------- Scroll ---------------- */
-
-                resultCard.scrollIntoView({
-                    behavior: "smooth",
-                    block: "nearest"
-                });
-
-
-            } catch (error) {
-
-                console.error(error);
-
-                alert(
-                    "Something went wrong while predicting placement."
-                );
-
-            } finally {
-
-                button.disabled = false;
-
-                button.textContent =
-                    "Predict Placement";
             }
 
-        });
+            var result = await response.json();
+
+            var predictionText = byId("predictionText");
+            predictionText.textContent = result.prediction;
+            setPredictionColor(predictionText, result.prediction);
+
+            /*
+                Main card shows confidence in the class the model
+                predicted. The simulator uses placed_probability instead.
+            */
+            byId("predictionProbability").textContent =
+                Number(result.probability ?? 0) + "% model confidence";
+
+            byId("explanationText").innerHTML = renderMarkdown(
+                result.explanation || "No AI explanation was returned."
+            );
+
+            resultCard.style.display = "block";
+
+            resultCard.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest"
+            });
+
+        } catch (error) {
+
+            console.error(error);
+            showError("formError", error.message);
+
+        } finally {
+
+            button.disabled = false;
+            button.textContent = "Predict Placement";
+        }
+    });
 
 
     /* ============================================================
        SIMULATE IMPROVEMENT
     ============================================================ */
 
-    document
-        .getElementById("simulateButton")
-        .addEventListener("click", async function() {
+    byId("simulateButton").addEventListener("click", async function () {
 
-            const button =
-                document.getElementById("simulateButton");
+        clearError("simError");
 
-            const loading =
-                document.getElementById("simulationLoading");
+        if (!formIsValid()) {
+            return;
+        }
 
-            const results =
-                document.getElementById("simulationResults");
+        var button = byId("simulateButton");
+        var loading = byId("simulationLoading");
+        var results = byId("simulationResults");
 
+        button.disabled = true;
+        button.textContent = "Simulating...";
+        loading.classList.add("active");
+        results.style.display = "none";
 
-            try {
+        try {
 
-                const studentData = getStudentData();
+            var response = await fetch("/simulate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(getStudentData())
+            });
 
-
-                /* ---------------- Validate Form ---------------- */
-
-                if (
-                    !studentData.gender ||
-                    !studentData.branch ||
-                    !studentData.extracurricular
-                ) {
-
-                    alert(
-                        "Please complete all student information first."
-                    );
-
-                    return;
-                }
-
-
-                /* ---------------- Loading ---------------- */
-
-                button.disabled = true;
-
-                button.textContent =
-                    "Simulating...";
-
-                loading.classList.add("active");
-
-                results.style.display = "none";
-
-
-                /* ---------------- API Request ---------------- */
-
-                const response = await fetch(
-                    "/simulate",
-                    {
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-
-                        body: JSON.stringify(studentData)
-                    }
+            if (!response.ok) {
+                throw new Error(
+                    await readError(response, "Simulation request failed.")
                 );
-
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        "Simulation request failed."
-                    );
-                }
-
-
-                const result =
-                    await response.json();
-
-
-                /* ==================================================
-                   CURRENT PROFILE
-                ================================================== */
-
-                const currentPrediction =
-                    document.getElementById(
-                        "currentPrediction"
-                    );
-
-                currentPrediction.textContent =
-                    result.current.prediction;
-
-                setPredictionColor(
-                    currentPrediction,
-                    result.current.prediction
-                );
-
-
-                const currentPlacedProbability =
-                    Number(
-                        result.current.placed_probability ??
-                        result.current.probability ??
-                        0
-                    );
-
-
-                document.getElementById(
-                    "currentPlacedProbability"
-                ).textContent =
-                    currentPlacedProbability +
-                    "% placed probability";
-
-
-                document.getElementById(
-                    "currentProbabilityValue"
-                ).textContent =
-                    currentPlacedProbability +
-                    "%";
-
-
-                document.getElementById(
-                    "currentProgress"
-                ).style.width =
-                    Math.min(
-                        currentPlacedProbability,
-                        100
-                    ) + "%";
-
-
-                /* ==================================================
-                   IMPROVED PROFILE
-                ================================================== */
-
-                const improvedPrediction =
-                    document.getElementById(
-                        "improvedPrediction"
-                    );
-
-                improvedPrediction.textContent =
-                    result.improved.prediction;
-
-                setPredictionColor(
-                    improvedPrediction,
-                    result.improved.prediction
-                );
-
-
-                const improvedPlacedProbability =
-                    Number(
-                        result.improved.placed_probability ??
-                        result.improved.probability ??
-                        0
-                    );
-
-
-                document.getElementById(
-                    "improvedPlacedProbability"
-                ).textContent =
-                    improvedPlacedProbability +
-                    "% placed probability";
-
-
-                document.getElementById(
-                    "improvedProbabilityValue"
-                ).textContent =
-                    improvedPlacedProbability +
-                    "%";
-
-
-                document.getElementById(
-                    "improvedProgress"
-                ).style.width =
-                    Math.min(
-                        improvedPlacedProbability,
-                        100
-                    ) + "%";
-
-
-                /* ==================================================
-                   IMPROVEMENT VALUES
-                ================================================== */
-
-                if (result.improvements) {
-
-                    const improvements =
-                        result.improvements;
-
-
-                    /* Study Hours */
-
-                    if (improvements.study_hours) {
-
-                        document.getElementById(
-                            "studyImprovement"
-                        ).textContent =
-                            improvements.study_hours.before +
-                            " → " +
-                            improvements.study_hours.after;
-                    }
-
-
-                    /* Attendance */
-
-                    if (improvements.attendance) {
-
-                        document.getElementById(
-                            "attendanceImprovement"
-                        ).textContent =
-                            improvements.attendance.before +
-                            "% → " +
-                            improvements.attendance.after +
-                            "%";
-                    }
-
-
-                    /* Assignments */
-
-                    if (improvements.assignments_completed) {
-
-                        document.getElementById(
-                            "assignmentImprovement"
-                        ).textContent =
-                            improvements
-                                .assignments_completed
-                                .before +
-                            " → " +
-                            improvements
-                                .assignments_completed
-                                .after;
-                    }
-
-
-                    /* Exam Score */
-
-                    if (improvements.exam_score) {
-
-                        document.getElementById(
-                            "examImprovement"
-                        ).textContent =
-                            improvements.exam_score.before +
-                            " → " +
-                            improvements.exam_score.after;
-                    }
-
-                }
-
-
-                /* ==================================================
-                   SIMULATION MESSAGE
-                ================================================== */
-
-                const message =
-                    document.getElementById(
-                        "simulationMessage"
-                    );
-
-
-                if (result.current.prediction === "Placed") {
-
-                    message.textContent =
-                        "You're already predicted as Placed. No improvement is required to change the model prediction. You can still strengthen your profile by maintaining or improving your current habits.";
-
-                    message.classList.remove(
-                        "warning-message"
-                    );
-
-                    message.classList.add(
-                        "success-message"
-                    );
-
-                } else if (result.placed_after_improvement) {
-
-                    message.textContent =
-                        "The simulated improvements changed the model prediction to Placed. This is a model-based simulation, not a guarantee of real-world placement.";
-
-                    message.classList.remove(
-                        "warning-message"
-                    );
-
-                    message.classList.add(
-                        "success-message"
-                    );
-
-                } else {
-
-                    message.textContent =
-                        "The simulated improvements increased the academic profile, but the model still predicts Not Placed. Try further improvement in the academic areas shown above. This simulation does not guarantee an actual placement result.";
-
-                    message.classList.remove(
-                        "success-message"
-                    );
-
-                    message.classList.add(
-                        "warning-message"
-                    );
-                }
-
-
-                /* ---------------- Show Results ---------------- */
-
-                results.style.display =
-                    "block";
-
-
-                results.scrollIntoView({
-                    behavior: "smooth",
-                    block: "nearest"
-                });
-
-
-            } catch (error) {
-
-                console.error(error);
-
-                alert(
-                    "Something went wrong while running the improvement simulation."
-                );
-
-            } finally {
-
-                button.disabled = false;
-
-                button.textContent =
-                    "Simulate Improvement";
-
-                loading.classList.remove("active");
             }
 
-        });
+            var result = await response.json();
+
+            /* ---------------- Profiles ---------------- */
+
+            fillProfile("current", result.current);
+            fillProfile("improved", result.improved);
+
+            /* ---------------- Improvement rows ---------------- */
+
+            var imp = result.improvements || {};
+
+            setImprovement("studyImprovement", imp.study_hours, "");
+            setImprovement("attendanceImprovement", imp.attendance, "%");
+            setImprovement("assignmentImprovement", imp.assignments_completed, "");
+            setImprovement("examImprovement", imp.exam_score, "");
+
+            /* ---------------- Message ---------------- */
+
+            var message = byId("simulationMessage");
+            message.classList.remove("success-message", "warning-message");
+
+            var currentProb = Number(result.current.placed_probability ?? 0);
+            var improvedProb = Number(result.improved.placed_probability ?? 0);
+
+            if (result.current.prediction === "Placed") {
+
+                message.textContent =
+                    "You're already predicted as Placed. No improvement is required to change the model prediction. You can still strengthen your profile by maintaining or improving your current habits.";
+                message.classList.add("success-message");
+
+            } else if (result.placed_after_improvement) {
+
+                message.textContent =
+                    "The simulated improvements changed the model prediction to Placed. This is a model-based simulation, not a guarantee of real-world placement.";
+                message.classList.add("success-message");
+
+            } else if (improvedProb <= currentProb) {
+
+                message.textContent =
+                    "Within the ranges tested, improving these four areas alone did not raise the placement probability. Other factors in your profile may matter more. This simulation does not guarantee an actual placement result.";
+                message.classList.add("warning-message");
+
+            } else {
+
+                message.textContent =
+                    "The simulated improvements increased the placement probability, but the model still predicts Not Placed. Try further improvement in the academic areas shown above. This simulation does not guarantee an actual placement result.";
+                message.classList.add("warning-message");
+            }
+
+            results.style.display = "block";
+
+            results.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest"
+            });
+
+        } catch (error) {
+
+            console.error(error);
+            showError("simError", error.message);
+
+        } finally {
+
+            button.disabled = false;
+            button.textContent = "Simulate Improvement";
+            loading.classList.remove("active");
+        }
+    });
 
 </script>
 

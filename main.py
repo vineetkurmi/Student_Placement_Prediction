@@ -1,13 +1,16 @@
 import os
+import math
+
 import joblib
+import numpy as np
 import pandas as pd
 
 from dotenv import load_dotenv
 from groq import Groq
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # =========================================================
 # ENVIRONMENT
@@ -33,15 +36,34 @@ templates = Jinja2Templates(directory="templates")
 
 model = joblib.load("placement_model.joblib")
 
+# Column order the model was trained with (used when batching)
+MODEL_CLASSES = list(model.classes_)
+
+if 1 not in MODEL_CLASSES:
+    raise RuntimeError("Placed class (1) was not found in the trained model.")
+
+PLACED_INDEX = MODEL_CLASSES.index(1)
+
 # =========================================================
 # GROQ CLIENT
 # =========================================================
 
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# If the key is missing the app still starts; only the AI mentor is disabled.
+groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+
+FALLBACK_EXPLANATION = (
+    "Your prediction has been generated successfully. "
+    "The AI mentor explanation is temporarily unavailable. "
+    "Please focus on consistent study, attendance, "
+    "assignment completion and exam preparation."
+)
 
 # =========================================================
-# STUDENT DATA MODEL
+# STUDENT DATA MODEL (with validation)
 # =========================================================
+
 
 class StudentData(BaseModel):
 
@@ -49,120 +71,112 @@ class StudentData(BaseModel):
 
     branch: str
 
-    study_hours: float
+    study_hours: float = Field(ge=0, le=24)
 
-    attendance: float
+    attendance: float = Field(ge=0, le=100)
 
-    sleep_hours: float
+    sleep_hours: float = Field(ge=0, le=24)
 
-    internet_usage: float
+    internet_usage: float = Field(ge=0)
 
-    assignments_completed: float
+    assignments_completed: float = Field(ge=0)
 
-    previous_score: float
+    previous_score: float = Field(ge=0, le=100)
 
     extracurricular: str
 
-    exam_score: float
+    exam_score: float = Field(ge=0, le=100)
+
 
 # =========================================================
-# HELPER FUNCTION
+# HELPER FUNCTIONS
 # =========================================================
 
-def get_placed_probability(input_data: pd.DataFrame):
 
+def get_placed_probability(input_data: pd.DataFrame) -> float:
     """
-    Returns the probability of the PLACED class.
-
-    The trained model uses:
-        0 = Not Placed
-        1 = Placed
+    Returns the probability of the PLACED class (1).
     """
+    probabilities = model.predict_proba(input_data)[0]
+    return float(probabilities[PLACED_INDEX])
 
-    probabilities = model.predict_proba(
-        input_data
-    )[0]
 
-    classes = list(
-        model.classes_
-    )
+def build_range(current: float, cap: int, step: int = 1) -> list:
+    """
+    Values from the student's current value (rounded UP, so we never
+    suggest a decrease) to the cap. If the current value is already
+    at or above the cap, only the current value is used.
+    """
+    start = math.ceil(current)
 
-    if 1 not in classes:
-        raise ValueError(
-            "Placed class (1) was not found in the trained model."
-        )
+    if start > cap:
+        return [current]
 
-    placed_index = classes.index(1)
+    values = list(range(start, cap + 1, step))
 
-    return float(
-        probabilities[placed_index]
-    )
+    # Make sure the cap itself is always tested
+    if values[-1] != cap:
+        values.append(cap)
+
+    return values
+
+
+def improvement_block(before: dict, after: dict) -> dict:
+    keys = [
+        "study_hours",
+        "attendance",
+        "assignments_completed",
+        "exam_score",
+    ]
+    return {
+        k: {"before": before[k], "after": after[k]}
+        for k in keys
+    }
+
 
 # =========================================================
 # HOME PAGE
 # =========================================================
 
+
 @app.get("/")
 def home(request: Request):
-
     return templates.TemplateResponse(
         request=request,
         name="index.html",
-        context={
-            "request": request
-        }
+        context={"request": request},
     )
+
+
+# Browsers automatically ask for a favicon; return "no content"
+# instead of logging a 404 every time.
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
+
 
 # =========================================================
 # PREDICTION API
 # =========================================================
 
+
 @app.post("/predict")
 def predict(data: StudentData):
 
-    # -----------------------------------------------------
-    # Convert input into DataFrame
-    # -----------------------------------------------------
+    input_data = pd.DataFrame([data.model_dump()])
 
-    input_data = pd.DataFrame(
-        [data.model_dump()]
-    )
-
-    # -----------------------------------------------------
-    # Model prediction
-    # -----------------------------------------------------
-
-    prediction = model.predict(
-        input_data
-    )[0]
-
-    # -----------------------------------------------------
-    # Prediction result
-    # -----------------------------------------------------
-
-    result = (
-        "Placed"
-        if prediction == 1
-        else "Not Placed"
-    )
-
-    # -----------------------------------------------------
-    # Calculate probabilities
-    # -----------------------------------------------------
-
+    # Single model call for probabilities, derive everything from it
     probabilities = model.predict_proba(input_data)[0]
+    predicted_index = int(np.argmax(probabilities))
+    prediction = MODEL_CLASSES[predicted_index]
 
-    classes = list(model.classes_)
+    result = "Placed" if prediction == 1 else "Not Placed"
 
     # Confidence of the class predicted by the model
-    predicted_probability = float(
-        probabilities[classes.index(prediction)]
-    )
+    predicted_probability = float(probabilities[predicted_index])
 
     # Probability specifically of PLACED
-    placed_probability = get_placed_probability(
-        input_data
-    )
+    placed_probability = float(probabilities[PLACED_INDEX])
 
     # -----------------------------------------------------
     # Groq AI Mentor
@@ -184,6 +198,8 @@ Student details:
 
 - Study hours: {data.study_hours}
 - Attendance: {data.attendance}%
+- Sleep hours: {data.sleep_hours}
+- Internet usage: {data.internet_usage}
 - Assignments completed: {data.assignments_completed}
 - Previous score: {data.previous_score}
 - Exam score: {data.exam_score}
@@ -254,513 +270,159 @@ Use this format:
 ## A message for you
 """
 
-    try:
+    explanation = FALLBACK_EXPLANATION
 
-        completion = groq_client.chat.completions.create(
+    if groq_client is not None:
+        try:
+            completion = groq_client.chat.completions.create(
+                model="openai/gpt-oss-20b",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.4,
+                # Reasoning tokens count toward this limit, so keep it
+                # generous and keep reasoning light.
+                max_completion_tokens=1500,
+                reasoning_effort="low",
+            )
 
-            model="openai/gpt-oss-20b",
+            content = completion.choices[0].message.content
 
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
+            if content and content.strip():
+                explanation = content
 
-            temperature=0.4,
-
-            max_tokens=1000
-        )
-
-        explanation = (
-            completion
-            .choices[0]
-            .message
-            .content
-        )
-
-    except Exception as e:
-
-        explanation = (
-            "Your prediction has been generated successfully. "
-            "The AI mentor explanation is temporarily unavailable. "
-            "Please focus on consistent study, attendance, "
-            "assignment completion and exam preparation."
-        )
-
-        print(
-            "Groq error:",
-            str(e)
-        )
-
-    # -----------------------------------------------------
-    # API response
-    # -----------------------------------------------------
+        except Exception as e:
+            print("Groq error:", str(e))
+    else:
+        print("Groq error: GROQ_API_KEY is not set.")
 
     return {
-
         "prediction": result,
 
         # Confidence of the class predicted by the model
-        "probability": round(
-            predicted_probability * 100,
-            2
-        ),
+        "probability": round(predicted_probability * 100, 2),
 
         # Always means PLACED probability
-        "placed_probability": round(
-            placed_probability * 100,
-            2
-        ),
+        "placed_probability": round(placed_probability * 100, 2),
 
-        "explanation": explanation
+        "explanation": explanation,
     }
+
 
 # =========================================================
 # IMPROVEMENT SIMULATOR
 # =========================================================
 
+
 @app.post("/simulate")
 def simulate(data: StudentData):
 
-    # -----------------------------------------------------
-    # CURRENT STUDENT
-    # -----------------------------------------------------
-
     current_data = data.model_dump()
-
     current_input = pd.DataFrame([current_data])
 
-    current_prediction = model.predict(current_input)[0]
-
-    current_placed_probability = (get_placed_probability(current_input))
-
-    current_result = ("Placed" if current_prediction == 1 else "Not Placed")
+    current_probabilities = model.predict_proba(current_input)[0]
+    current_prediction = MODEL_CLASSES[int(np.argmax(current_probabilities))]
+    current_placed_probability = float(current_probabilities[PLACED_INDEX])
+    current_result = "Placed" if current_prediction == 1 else "Not Placed"
 
     # -----------------------------------------------------
-    # IF ALREADY PLACED
+    # IF ALREADY PLACED -> nothing to improve
     # -----------------------------------------------------
 
     if current_prediction == 1:
-
         return {
-
             "current": {
-
                 "prediction": "Placed",
-
-                "placed_probability": round(
-                    current_placed_probability * 100,
-                    2
-                )
+                "placed_probability": round(current_placed_probability * 100, 2),
             },
-
             "improved": {
-
                 "prediction": "Placed",
-
-                "placed_probability": round(
-                    current_placed_probability * 100,
-                    2
-                )
+                "placed_probability": round(current_placed_probability * 100, 2),
             },
-
-            "improvements": {
-
-                "study_hours": {
-
-                    "before":
-                        current_data["study_hours"],
-
-                    "after":
-                        current_data["study_hours"]
-                },
-
-                "attendance": {
-
-                    "before":
-                        current_data["attendance"],
-
-                    "after":
-                        current_data["attendance"]
-                },
-
-                "assignments_completed": {
-
-                    "before":
-                        current_data[
-                            "assignments_completed"
-                        ],
-
-                    "after":
-                        current_data[
-                            "assignments_completed"
-                        ]
-                },
-
-                "exam_score": {
-
-                    "before":
-                        current_data["exam_score"],
-
-                    "after":
-                        current_data["exam_score"]
-                }
-            },
-
-
-            "placed_after_improvement": True
+            "improvements": improvement_block(current_data, current_data),
+            "placed_after_improvement": True,
         }
 
     # -----------------------------------------------------
-    # BEST PLACED PROFILE
+    # BUILD ALL CANDIDATE COMBINATIONS
     # -----------------------------------------------------
 
-    best_placed_profile = None
+    study_values = build_range(current_data["study_hours"], 12)
+    attendance_values = build_range(current_data["attendance"], 100, 5)
+    assignment_values = build_range(current_data["assignments_completed"], 15)
+    exam_values = build_range(current_data["exam_score"], 100, 5)
 
-    best_placed_probability = 0.0
-
-    best_improvement_cost = float(
-        "inf"
-    )
-
-    # -----------------------------------------------------
-    # BEST PROBABILITY PROFILE
-    #
-    # Used if no combination produces Placed.
-    # -----------------------------------------------------
-
-    best_probability_profile = (
-        current_data.copy()
-    )
-
-    best_probability = (
-        current_placed_probability
-    )
-
-    # -----------------------------------------------------
-    # POSSIBLE ACADEMIC VALUES
-    # -----------------------------------------------------
-
-    study_values = range(
-
-        int(
-            current_data["study_hours"]
-        ),
-
-        13
-    )
-
-    attendance_values = range(
-
-        int(
-            current_data["attendance"]
-        ),
-
-        101,
-
-        5
-    )
-
-    assignment_values = range(
-
-        int(
-            current_data[
-                "assignments_completed"
-            ]
-        ),
-
-        16
-    )
-
-    exam_values = range(
-
-        int(
-            current_data["exam_score"]
-        ),
-
-        101,
-
-        5
-    )
-
-    # -----------------------------------------------------
-    # SEARCH DIFFERENT COMBINATIONS
-    # -----------------------------------------------------
-
-    for study_hours in study_values:
-
-        for attendance in attendance_values:
-
-            for assignments in assignment_values:
-
-                for exam_score in exam_values:
-
-                    candidate = (
-                        current_data.copy()
-                    )
-
-                    # Academic improvements
-                    candidate[
-                        "study_hours"
-                    ] = study_hours
-
-                    candidate[
-                        "attendance"
-                    ] = attendance
-
-                    candidate[
-                        "assignments_completed"
-                    ] = assignments
-
-                    candidate[
-                        "exam_score"
-                    ] = exam_score
-
-                    candidate_input = pd.DataFrame(
-                        [candidate]
-                    )
-
-                    # -------------------------------------------------
-                    # Prediction
-                    # -------------------------------------------------
-
-                    prediction = model.predict(
-                        candidate_input
-                    )[0]
-
-                    # -------------------------------------------------
-                    # Placed probability
-                    # -------------------------------------------------
-
-                    placed_probability = (
-                        get_placed_probability(
-                            candidate_input
-                        )
-                    )
-
-                    # -------------------------------------------------
-                    # Track highest probability
-                    # -------------------------------------------------
-
-                    if (
-                        placed_probability
-                        > best_probability
-                    ):
-
-                        best_probability = (
-                            placed_probability
-                        )
-
-                        best_probability_profile = (
-                            candidate.copy()
-                        )
-
-                    # -------------------------------------------------
-                    # Calculate improvement cost
-                    #
-                    # Smaller = less change required
-                    # -------------------------------------------------
-
-                    improvement_cost = (
-
-                        (
-                            study_hours
-                            -
-                            current_data[
-                                "study_hours"
-                            ]
-                        )
-
-                        +
-
-                        (
-                            attendance
-                            -
-                            current_data[
-                                "attendance"
-                            ]
-                        ) / 5
-
-                        +
-
-                        (
-                            assignments
-                            -
-                            current_data[
-                                "assignments_completed"
-                            ]
-                        )
-
-                        +
-
-                        (
-                            exam_score
-                            -
-                            current_data[
-                                "exam_score"
-                            ]
-                        ) / 5
-                    )
-
-                    # -------------------------------------------------
-                    # If this combination gives PLACED
-                    # keep the smallest improvement
-                    # -------------------------------------------------
-
-                    if prediction == 1:
-
-                        if (
-
-                            improvement_cost
-                            <
-                            best_improvement_cost
-
-                            or
-
-                            (
-                                improvement_cost
-                                ==
-                                best_improvement_cost
-
-                                and
-
-                                placed_probability
-                                >
-                                best_placed_probability
-                            )
-                        ):
-
-                            best_placed_profile = (
-                                candidate.copy()
-                            )
-
-                            best_placed_probability = (
-                                placed_probability
-                            )
-
-                            best_improvement_cost = (
-                                improvement_cost
-                            )
-
-    # -----------------------------------------------------
-    # CHOOSE FINAL IMPROVED PROFILE
-    # -----------------------------------------------------
-
-    if best_placed_profile is not None:
-
-        improved_data = (
-            best_placed_profile
+    # np.meshgrid builds every combination without Python loops
+    grid = np.array(
+        np.meshgrid(
+            study_values,
+            attendance_values,
+            assignment_values,
+            exam_values,
+            indexing="ij",
         )
+    ).reshape(4, -1).T.astype(float)
 
-        improved_probability = (
-            best_placed_probability
-        )
+    changing_cols = [
+        "study_hours",
+        "attendance",
+        "assignments_completed",
+        "exam_score",
+    ]
 
+    candidates = pd.DataFrame([current_data] * len(grid))
+    candidates[changing_cols] = grid
+    candidates = candidates[current_input.columns]  # keep training column order
+
+    # -----------------------------------------------------
+    # ONE batched prediction for all candidates
+    # -----------------------------------------------------
+
+    probabilities = model.predict_proba(candidates)
+    predictions = np.array(MODEL_CLASSES)[np.argmax(probabilities, axis=1)]
+    placed_probs = probabilities[:, PLACED_INDEX]
+
+    # Improvement cost: smaller = less change required
+    cost = (
+        (grid[:, 0] - current_data["study_hours"])
+        + (grid[:, 1] - current_data["attendance"]) / 5
+        + (grid[:, 2] - current_data["assignments_completed"])
+        + (grid[:, 3] - current_data["exam_score"]) / 5
+    )
+
+    placed_mask = predictions == 1
+
+    if placed_mask.any():
+        # Lowest cost wins; ties broken by highest placed probability
+        placed_idx = np.flatnonzero(placed_mask)
+        order = np.lexsort((-placed_probs[placed_idx], cost[placed_idx]))
+        best = int(placed_idx[order[0]])
         improved_result = "Placed"
-
         placed_after_improvement = True
-
     else:
-
-        # No realistic tested combination produced
-        # a Placed prediction.
-
-        improved_data = (best_probability_profile)
-
-        improved_probability = (best_probability)
-
-        improved_input = pd.DataFrame(
-            [improved_data]
-        )
-
-        improved_prediction = model.predict(improved_input)[0]
-
-        improved_result = ("Placed" if improved_prediction == 1 else "Not Placed")
-
+        # No tested combination produced Placed -> show the best probability
+        best = int(np.argmax(placed_probs))
+        improved_result = "Placed" if predictions[best] == 1 else "Not Placed"
         placed_after_improvement = False
+
+    improved_data = current_data.copy()
+
+    for col, value in zip(changing_cols, grid[best]):
+        improved_data[col] = float(value)
+
+    improved_probability = float(placed_probs[best])
 
     # -----------------------------------------------------
     # RETURN SIMULATION
     # -----------------------------------------------------
 
     return {
-
         "current": {
-
             "prediction": current_result,
-
-            "placed_probability": round(
-                current_placed_probability * 100,
-                2
-            )
+            "placed_probability": round(current_placed_probability * 100, 2),
         },
-
         "improved": {
-
             "prediction": improved_result,
-
-            "placed_probability": round(
-                improved_probability * 100,
-                2
-            )
+            "placed_probability": round(improved_probability * 100, 2),
         },
-
-        "improvements": {
-
-            "study_hours": {
-
-                "before":
-                    current_data[
-                        "study_hours"
-                    ],
-
-                "after":
-                    improved_data[
-                        "study_hours"
-                    ]
-            },
-
-            "attendance": {
-
-                "before":
-                    current_data[
-                        "attendance"
-                    ],
-
-                "after":
-                    improved_data[
-                        "attendance"
-                    ]
-            },
-
-            "assignments_completed": {
-
-                "before":
-                    current_data[
-                        "assignments_completed"
-                    ],
-
-                "after":
-                    improved_data[
-                        "assignments_completed"
-                    ]
-            },
-
-            "exam_score": {
-
-                "before":
-                    current_data[
-                        "exam_score"
-                    ],
-
-                "after":
-                    improved_data[
-                        "exam_score"
-                    ]
-            }
-        },
-
-        "placed_after_improvement":
-            placed_after_improvement
+        "improvements": improvement_block(current_data, improved_data),
+        "placed_after_improvement": placed_after_improvement,
     }
