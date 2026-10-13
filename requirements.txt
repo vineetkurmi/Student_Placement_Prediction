@@ -3,6 +3,7 @@ uvicorn
 scikit-learn==1.9.1
 joblib
 jinja2
+numpy
 pandas
 groq
 python-dotenv
